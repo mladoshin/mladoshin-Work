@@ -15,3 +15,6 @@ print(height);
 print(unpArea);
 print("area: "+str(Area));
 print("paint volume: "+str(volume) + " litres");
+
+## ACS - Logically fine.
+## ACS - Needs comments so we know what approach you are taking.
