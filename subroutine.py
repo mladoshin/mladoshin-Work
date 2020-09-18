@@ -1,20 +1,20 @@
 nameList = []
-STUDENTS = 10
-EXIT_ACTION = "exit"
-NAME_LENGTH = 3
+STUDENTS = 10 #number of students const
+EXIT_ACTION = "exit" #exit const
+NAME_LENGTH = 3 #min student name's length 
 
-def initList():
+def initList():#initialising procedure to clear the nameList
     for i in range(STUDENTS):
         nameList.append("")
 
-def displayList():
+def displayList():#procedure to output the list of student name (nameList)
     print()
     for i in range(STUDENTS):
         #if (nameList[i] != ""):
         print(str(i+1)+": "+nameList[i])
     print()
         
-def displayMenu():
+def displayMenu():#Menu function to get the user's choice input with validation
     print()
     print("1 - Add Name")
     print("2 - Display list")
@@ -31,7 +31,7 @@ def displayMenu():
     return displayMenu()
 
 
-def addNameIndx(name):
+def addNameIndx(name):#function for inputting the index Student
     index = input("Enter the position in the list for "+str(name)+" (1-"+str(STUDENTS)+"):")
     try:
         index = int(index)
@@ -45,7 +45,7 @@ def addNameIndx(name):
     return addNameIndx(name)
 
     
-def addName():
+def addName(): #function for inputting and validating the student's name. Works with addNameIndx()
     print()
     name = input("Enter the name: ")
     if (name != "") and (len(name)>=NAME_LENGTH): 
@@ -63,7 +63,7 @@ def addName():
 
 
         
-def main():
+def main():#main looping function 
     print("<----------------------------------------------------------------->")
     choice = displayMenu()
     if (choice==1):#Add name
