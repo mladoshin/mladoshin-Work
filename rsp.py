@@ -3,13 +3,7 @@ signs=["R", "S", "P"]
 
 def checkWin(s1, s2):
     res = True
-    if (s1=="R") and (s2=="P"):
-        res=False
-
-    if(s1=="S") and (s2=="R"):
-        res=False
-
-    if (s1=="P") and (s2=="S"):
+    if (s1=="R") and (s2=="P") or (s1=="S") and (s2=="R") or (s1=="P") and (s2=="S"):
         res=False
 
     return res
