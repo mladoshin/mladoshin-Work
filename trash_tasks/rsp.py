@@ -1,22 +1,26 @@
 import random
 signs=["R", "S", "P"]
+draw = "You draw!"
+loss = "You lost!"
+win = "You won!"
 
-def checkWin(s1, s2):
-    res = True
-    if (s1=="R") and (s2=="P") or (s1=="S") and (s2=="R") or (s1=="P") and (s2=="S"):
-        res=False
+results = [[draw, win, loss ],
+                 [loss, draw, win],
+                 [win, loss, draw]
+                 ] #0-draw, 1-loose, 2-win
 
-    return res
 
 
 def userInput():
     sign = input("Enter r, s or p: ").upper()
+    print(sign)
     try:
-        if (signs.index(sign)):
+        if (signs.index(sign)+1  ):
             return sign
     except:
         print("Error! Enter r, s or p!")
-        return userInput()
+
+    return userInput()
 
     
 
@@ -24,12 +28,10 @@ def main():
     sign1 = userInput()
     sign2 = signs[random.randint(0, len(signs)-1)]
 
-    res = checkWin(sign1, sign2)
     print("You: ",sign1)
     print("Computer: ",sign2)
-    if (res==True):
-        print("You won!")
-    else: print("You lost!")
+
+    print(results[signs.index(sign1)][signs.index(sign2)])
     print("<-------------------->\n")
     main()
 
