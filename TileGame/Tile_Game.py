@@ -47,24 +47,56 @@ class Player(pygame.sprite.Sprite):
     def isCollision(self):
         player_hit_group = pygame.sprite.spritecollide(self, self.bricks, False)
         flag = False
+        direction = ""
+        x = None
+        y = None
+
+        no_direction=["", "", "", ""]
+
         for hit in player_hit_group:
             flag = True
-            print(hit.rect.x)
+            #print("hit.rect.y: "+str(hit.rect.y))
+            #print("self.rect.y: "+str(self.rect.y))
+            x = hit.rect.x
+            y = hit.rect.y
 
-        return flag
+            if(self.rect.y == y+39):
+                no_direction[0] = "up"
+                self.rect.y = y+40
+                print("up")
+
+            if(self.rect.y+19 == y):
+                no_direction[1] = "down"
+                self.rect.y = y-20
+                print("down")
+
+            if(self.rect.x == x+39):
+                no_direction[2] = "left"
+                self.rect.x = x+40
+                print("left")
+
+            if(self.rect.x+19 == x):
+                no_direction[3] = "right"
+                self.rect.x = x-20
+                print("right")
+
+
+        return no_direction
+        
 
 
 
     def move(self, direction):
-        if (self.isCollision() == False):
-            if (direction=="up"):
-                self.rect.y -= self.speed
-            elif(direction == "down"):
-                self.rect.y += self.speed
-            elif(direction == "left"):
-                self.rect.x -= self.speed
-            elif(direction == "right"):
-                self.rect.x += self.speed
+        no_direction=self.isCollision()
+
+        if (direction=="up" and no_direction[0]!="up"):
+            self.rect.y -= self.speed
+        elif(direction == "down" and no_direction[1]!="down"):
+            self.rect.y += self.speed
+        elif(direction == "left" and no_direction[2]!="left"):
+            self.rect.x -= self.speed
+        elif(direction == "right" and no_direction[3]!="right"):
+            self.rect.x += self.speed
 
 class Game():
     def __init__(self, brickSide):
@@ -72,7 +104,7 @@ class Game():
         self.brickSide = brickSide
         self.all_sprites_group = pygame.sprite.Group()
         self.bricks_sprites_group = pygame.sprite.Group()
-        self.player = Player(100, 100, 20, 20, 5, 100, self.bricks_sprites_group)
+        self.player = Player(100, 100, 20, 20, 1, 100, self.bricks_sprites_group)
         self.all_sprites_group.add(self.player)
         self.done = False
 
@@ -134,9 +166,9 @@ class Game():
                 #move the player down
                 self.player.setSpeed(10)
             else:
-                self.player.setSpeed(5)
+                self.player.setSpeed(1)
 
-            clock.tick(60)
+            clock.tick(240)
         #EndWhile
 
 
