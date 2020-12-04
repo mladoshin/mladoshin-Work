@@ -13,6 +13,7 @@ LOOT_TYPES = ["weapon", "bullets", "paramedics", "armour"]
 WEAPON_TYPES = ["glock", "ak47", "shotgun"]
 BULLET_TYPES = ["pistols", "rifles", "shotguns"]
 ARMOUR_TYPES = ["heavy", "medium", "light"]
+PARAMEDIC_TYPES = ["heavy", "medium", "light"]
 
 pygame.init()
 
@@ -22,7 +23,9 @@ screen = pygame.display.set_mode(size)
 pygame.display.set_caption("My Game")
 
 clock = pygame.time.Clock()
-
+#font
+mainFont = pygame.font.SysFont("comicsans", 30)
+secondaryFont = pygame.font.SysFont("comicsans", 20)
 
 #classes
 
@@ -46,9 +49,18 @@ class People(pygame.sprite.Sprite):
         self.playerX = 0
         self.playerY = 0
 
+        #health bar component
+        self.health_bar = HealthBar(self.rect.x, self.rect.y, self.width*2, self.height/3, self.health)
+
     def updatePlayerPosition(self, x, y):
         self.playerX = x
         self.playerY = y
+
+    def getXPosition(self):
+        return self.rect.x
+    
+    def getYPosition(self):
+        return self.rect.y
 
     #method for wall colisions
     def isCollision(self):
@@ -99,11 +111,17 @@ class People(pygame.sprite.Sprite):
 
     #shooting method
     def shoot(self):
-        bullet = Bullet(self.rect.x, self.rect.y, 10, 20, WHITE, 5)
+        #create a bullet object of type "pistol"
+        bullet = Bullet(self.rect.x, self.rect.y, 10, 20, WHITE, "pistols")
         self.bullets_list.add(bullet)
-        self.bullets_list.update()
-    def draw(self):
-        screen.blit(self.image, (self.rect.x, self.rect.y))
+
+    def drawHealthBar(self):
+       
+       if(self.health < 100):
+           #print("Health: "+str(self.health))
+           self.health_bar.update(self, self.health, True)
+           self.health_bar.draw()
+
 
 
 
@@ -118,23 +136,149 @@ class Brick(pygame.sprite.Sprite):
         self.rect.x = x
         self.rect.y = y
 
+class ScoreBoard():
+    def __init__(self, x, y, width, height):
+        self.width = width
+        self.height = height
+        self.x = x
+        self.y = y
+
+    def draw(self, kills, score):
+        kills_label = mainFont.render("Kills: "+str(kills), 1, WHITE)
+        score_label = mainFont.render("Score: "+str(score), 1, WHITE)
+        
+        screen.blit(kills_label, (self.x, self.y))
+        screen.blit(score_label, (self.x, self.y+40))
+        
+
+class HealthBar():
+    def __init__(self, objX, objY, width, height, initHealth):
+        self.maxHealth = initHealth
+        self.outterContainer = pygame.Surface([width, height])
+        self.outterContainer.fill(WHITE)
+        self.rectOutter = self.outterContainer.get_rect()
+        self.rectOutter.x = objX
+        self.rectOutter.y = objY
+
+        self.innerContainer = pygame.Surface([width, height])
+        self.innerContainer.fill(GREEN)
+        self.rectInner = self.innerContainer.get_rect()
+        self.rectInner.x = objX
+        self.rectInner.y = objY
+        self.maxWidth = width
+        self.height = height
+
+    def update(self, player, health, isPlayer):
+        percent = health/self.maxHealth
+        newWidth = int(self.maxWidth * percent)
+
+        if (newWidth <= 0):
+            newWidth = 0
+
+        self.innerContainer = pygame.Surface([newWidth, self.height])
+        self.innerContainer.fill(GREEN)
+        self.rectInner = self.innerContainer.get_rect()
+        self.rectInner.x = player.rect.x-player.width/2
+        
+
+        self.rectOutter.x = player.rect.x-player.width/2
+        if (isPlayer):
+            self.rectOutter.y = player.rect.y + player.height + 10
+            self.rectInner.y = player.rect.y + player.height + 10
+        else:
+            print(self)
+
+            self.rectOutter.y = player.rect.y - 10
+            self.rectInner.y = player.rect.y - 10
+
+        self.draw()
+
+    def draw(self):
+        screen.blit(self.outterContainer, (self.rectOutter.x, self.rectOutter.y))
+        screen.blit(self.innerContainer, (self.rectInner.x, self.rectInner.y))
+
 #Player class
 class Player(People, pygame.sprite.Sprite):
-    def __init__(self, x, y, width, height, color, speed, health, bricks, loot):
+    def __init__(self, x, y, width, height, color, speed, health, bricks, loot, inventory_capacity):
         super().__init__(x, y, width, height, color, speed, health, bricks)
         pygame.sprite.Sprite.__init__(self)
+        self.weight_capacity = inventory_capacity
         self.inventory = []
+        #declare the list of the number of bullets, where 0 - pistols bullets, 1 - rifles bullet, 2 - gunshot bullets
+        self.bullets = [0, 0, 0]
+        #weapons[0] for glocks, 1 for ak47, 2 for shotguns
+        self.weapons = [0, 0, 0]
+        self.max_amount_weapons = 3
         self.loot_group = loot
 
+    def getInventoryWeight(self):
+        weight = 0
+        for item in self.inventory:
+            weight += item.weight
+        
+        return weight
+
+    
+
+    def getWeaponsList(self):
+        return self.weapons
+
+    def getBulletsList(self):
+        return self.bullets
+
     def checkLootCollision(self):
-        loot_hit_group = pygame.sprite.spritecollide(self, self.loot_group, True)
+        total_weight = 0
+        loot_hit_group = pygame.sprite.spritecollide(self, self.loot_group, False)
         for hit in loot_hit_group:
-            self.inventory.append(hit)
-            print(hit)
+            if(hit.weight + self.getInventoryWeight() <= self.getWeightCapacity()):
+                self.inventory.append(hit)
+                self.loot_group.remove(hit)
+                if(hit.name == "bullet pistols"):
+                    self.bullets[0] += hit.amount
+                elif(hit.name == "bullet rifles"):
+                    self.bullets[1] += hit.amount
+                elif(hit.name == "bullet gunshot"):
+                    self.bullets[2] += hit.amount
+
+                if(hit.loot_type == "weapon"):
+                    if (hit.name == "glock"):
+                        self.weapons[0] += 1
+                    elif(hit.name == "ak47"):
+                        self.weapons[1] += 1
+                    elif(hit.name == "shotgun"):
+                        self.weapons[2] += 1
+
+                    print(self.weapons)
+            print(hit.loot_type+ " was added to inventory!")
+
+    def getInventory(self):
+        return self.inventory
+
+    def getWeightCapacity(self):
+        return self.weight_capacity
+
+    def shoot(self):
+       
+        #check if there are any bullets for pistols
+        if (self.bullets[0] > 0 and self.weapons[0]>0): 
+            #create a bullet object of type "pistol"
+            bullet = Bullet(self.rect.x, self.rect.y, 10, 20, WHITE, "pistols")
+            self.bullets_list.add(bullet)
+            self.bullets[0] -= 1
+        elif(self.bullets[1] > 0 and self.weapons[1]>0):
+            bullet = Bullet(self.rect.x, self.rect.y, 10, 20, WHITE, "rifles")
+            self.bullets_list.add(bullet)
+            self.bullets[1] -= 1
+        elif(self.bullets[2] > 0 and self.weapons[2]>0):
+            bullet = Bullet(self.rect.x, self.rect.y, 10, 20, WHITE, "gunshots")
+            self.bullets_list.add(bullet)
+            self.bullets[2] -= 1
+
 
     #move method for the player
     def move(self, direction):
         no_direction=self.isCollision()
+        #check the collision with loot
         self.checkLootCollision()
         if (direction=="up" and no_direction[0]!="up"):
             self.rect.y -= self.speed
@@ -148,8 +292,11 @@ class Player(People, pygame.sprite.Sprite):
         self.updatePlayerPosition(self.rect.x, self.rect.y)
 
 class Loot(pygame.sprite.Sprite):
-    def __init__(self, x, y, width, height, color):
+    def __init__(self, x, y, width, height, color, loot_type, name):
         super().__init__()
+        self.weight = 1 #default value for item weight
+        self.name = loot_type+" "+name
+        self.loot_type = loot_type
         self.width = width
         self.height = height
         self.image = pygame.Surface([self.width, self.height])
@@ -160,30 +307,100 @@ class Loot(pygame.sprite.Sprite):
 
 class Paramedic(Loot):
     def __init__(self, x, y, width, height, color, paramedicType):
-        super().__init__(x, y, width, height, color)
+        super().__init__(x, y, width, height, color, "paramedic", paramedicType)
         if (paramedicType == "light"):
             self.healing = 25
+            self.weight = 2
         elif(paramedicType == "medium"):
             self.healing = 50
+            self.weight = 5
         elif(paramedicType == "heavy"):
             self.healing = 75
+            self.weight = 10
+
+class InventoryList():
+    def __init__(self, x, y, width, height):
+        self.x = x
+        self.y = y
+        self.width = width
+        self.height = height
+
+    
+    def draw(self, inventory, weight, maxWeight, bullets, weapons):
+        header = mainFont.render("Inventory("+str(weight)+"/"+str(maxWeight)+"): ", 1, WHITE)
+        counter = 0
+        i = 0
+
+        #for weapon in weapons:
+        #    if(counter == 0):
+        #        name = "glock pistol"
+        #    elif(counter == 1):
+        #        name = "ak47 rifle"
+        #    elif(counter == 2):
+        #        name = "shotgun"
+        #    
+        #    weapon_label = secondaryFont.render(name+" ("+str(weapons[i])+")", 1, WHITE)
+        #    screen.blit(weapon_label, (self.x, self.y+counter*20))
+        #    counter +=1
+
+        #for bullet in bullets:
+        #    
+        #    if (i == 0):
+        #        name = "weapon glock"
+        #    elif(i == 1):
+        #        name = "weapon rifles"
+        #    elif(i == 2):
+        #        name = "weapon shotguns"
+
+        #    bullets_label = secondaryFont.render(name+" ("+str(bullets[i])+")", 1, WHITE)
+        #    screen.blit(item_label, (self.x, self.y+counter*20))
+        #    i += 1
+
+        
+        for item in inventory:
+            counter+=1
+
+            if (item.loot_type == "bullet"):
+                if(item.name == "bullet glock"):
+                    i = 0
+                elif(item.name == "bullet rifles"):
+                    i = 1
+                elif(item.name == "bullet shotguns"):
+                    i = 2
+
+                item_label = secondaryFont.render(item.name+" ("+str(item.amount)+")", 1, WHITE)
+            else:
+                item_label = secondaryFont.render(item.name, 1, WHITE)
+
+            screen.blit(item_label, (self.x, self.y+counter*20))
+            
+        
+        screen.blit(header, (self.x, self.y))
+        
+
 
 class Weapon(Loot):
     def __init__(self, x, y, width, height, color, name):
-        super().__init__(x, y, width, height, color)
+        super().__init__(x, y, width, height, color, "weapon", name)
         #self.clip = clip
-        if(self.name == "glock"):
+        if(name == "glock"):
+            self.name = "glock"
             self.clip = 11
             self.quickness = 5
             self.damage = 10
-        elif(self.name == "ak47"):
+            self.weight = 2
+        elif(name == "ak47"):
+            self.name = "ak47"
             self.clip = 50
             self.quickness = 10
             self.damage = 25
-        elif(self.name == "shotgun"):
+            self.weight = 5
+        elif(name == "shotgun"):
+            self.name = "shotgun"
             self.clip = 10
             self.quickness = 3
             self.damage = 45
+            self.weight = 6
 
 #class FireArm(Weapon):
 #    def __init__(self, )
@@ -252,24 +469,46 @@ class Enemy(People):
         #print(self.attackVector[2])
 
 
+class Armour(Loot):
+    def __init__(self, x, y, width, height, color, Atype):
+        super().__init__(x, y, width, height, color, "armour", Atype)
+        if (Atype == "light"):
+            self.armourHealth = 25
+        elif (Atype == "medium"):
+            self.armourHealth = 55
+        elif(Atype == "heavy"):
+            self.armourHealth = 100
 
+class BulletsLoot(Loot):
+    def __init__(self, x, y, width, height, color, bullet_type):
+        super().__init__(x, y, width, height, color, "bullet", bullet_type)
+        self.amount = random.randint(5, 50)
 #Bullet class
-class Bullet(Loot):
+
+
+class Bullet(pygame.sprite.Sprite):
     isVisible = False
 
-    def __init__(self, x, y, width, height, color, speed):
-        super().__init__(x, y, width, height, color)
-        #self.width = width
-        #self.height = height
-        self.speed = speed
+    def __init__(self, x, y, width, height, color, bullet_type):
+        super().__init__()
+        self.name = "bullet "+bullet_type
+        self.width = width
+        self.height = height
+
+        if(bullet_type == "pistols"):
+            self.speed = 5
+        elif(bullet_type == "rifles"):
+            self.speed = 10
+        elif(bullet_type == "shotguns"):
+            self.speed = 3
 
         #surface
-        #self.image = pygame.Surface([self.width, self.height])
-        #self.image.fill(color)
-        #self.rect = self.image.get_rect()
+        self.image = pygame.Surface([self.width, self.height])
+        self.image.fill(color)
+        self.rect = self.image.get_rect()
 
-        #self.rect.x = x
-        #self.rect.y = y
+        self.rect.x = x
+        self.rect.y = y
 
     def move(self):
         self.rect.y = self.rect.y - self.speed
@@ -283,25 +522,39 @@ class Bullet(Loot):
             group.remove(self)
             print("Remove the bullet")
 
-        self.draw()
 
 #Game class
 class Game():
     def __init__(self, brickSide):
         self.numBricks = 0
         self.brickSide = brickSide
+
+        # declaration of sprite groups
         self.enemy_sprites_group = pygame.sprite.Group()
         self.all_sprites_group = pygame.sprite.Group()
         self.bricks_sprites_group = pygame.sprite.Group()
         self.loot_sprites_group = pygame.sprite.Group()
-        self.player = Player(100, 100, 20, 20, BLUE, 1, 100, self.bricks_sprites_group, self.loot_sprites_group)
+
+        #init the player and add him to the sprite group
+        self.player = Player(100, 100, 20, 20, BLUE, 1, 100, self.bricks_sprites_group, self.loot_sprites_group, 50)
         self.all_sprites_group.add(self.player)
+
         self.done = False
 
+        #init the inventory list board
+        self.inventoryList = InventoryList(50, 50, 100, 100)
+
+        #init the score board
+        self.scoreBoard = ScoreBoard(830, 50, 100, 100)
+
+        #create the border walls
         self.createOutterWalls()
+
+        #randomly place the loot
         self.createLoot()
                     
         
+        #creating the inner wall
         for i in range(5, 10):
             brick = Brick(i*self.brickSide, 5*40, self.brickSide)
             self.bricks_sprites_group.add(brick)
@@ -313,6 +566,8 @@ class Game():
         
 
         #print(self.player)
+
+    #randomly chosing the loot type and placing it on the map
     def createLoot(self):
         x = random.randint(40, 960)
         y = random.randint(40, 960)
@@ -320,21 +575,22 @@ class Game():
         lootType = LOOT_TYPES[random.randint(0, len(LOOT_TYPES)-1)]
         if (lootType == "weapon"):
             weapon_type = WEAPON_TYPES[random.randint(0, len(WEAPON_TYPES)-1)]
-            #loot = Weapon(x, y, 20, 20, GREEN, weapon_type)
+            loot = Weapon(x, y, 20, 20, GREEN, weapon_type)
             print("The weapon "+weapon_type+"was added!")
         elif(lootType == "bullets"):
             bullet_type = BULLET_TYPES[random.randint(0, len(BULLET_TYPES)-1)]
             print("Bullets " + bullet_type + " were added!")
-            #loot = Weapon(x, y, 20, 20, GREEN, weapon_type)
+            loot = BulletsLoot(x, y, 20, 20, GREEN, bullet_type)
         elif(lootType == "paramedics"):
+            paramedic_type = PARAMEDIC_TYPES[random.randint(0, len(PARAMEDIC_TYPES)-1)]
             print("Paramedic was added!")
-            #loot = Weapon(x, y, 20, 20, GREEN, weapon_type)
+            loot = Paramedic(x, y, 20, 20, GREEN, paramedic_type)
         elif(lootType == "armour"):
             armour_type = ARMOUR_TYPES[random.randint(0, len(ARMOUR_TYPES)-1)]
             print("Armour "+armour_type+" was added!")
-            loot = Weapon(x, y, 20, 20, GREEN, weapon_type)
+            loot = Armour(x, y, 20, 20, GREEN, armour_type)
 
-        self.all_sprites_group.add(loot)
+        #self.all_sprites_group.add(loot)
         self.loot_sprites_group.add(loot)
         
     def createOutterWalls(self):
@@ -362,9 +618,15 @@ class Game():
 
     def reRender(self):
         self.enemy_sprites_group.update()
+        self.player.bullets_list.update(self.player.bullets_list)
         #render the player
         self.all_sprites_group.draw(screen)
+        self.player.bullets_list.draw(screen)
+        self.player.drawHealthBar()
         self.bricks_sprites_group.draw(screen)
+        self.loot_sprites_group.draw(screen)
+        self.scoreBoard.draw(12, 10)
+        self.inventoryList.draw(self.player.getInventory(), self.player.getInventoryWeight(), self.player.getWeightCapacity(), self.player.getBulletsList(), self.player.getWeaponsList())
         #self.loot_sprites_group.draw(screen)
         if (len(self.loot_sprites_group)==0):
             self.createLoot()
@@ -380,6 +642,9 @@ class Game():
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     self.end()
+                if (event.type == pygame.MOUSEBUTTONDOWN) and (event.button == 1):
+                    print("Left click!")
+                    self.player.shoot()
 
             keys = pygame.key.get_pressed()
 
