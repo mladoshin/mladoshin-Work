@@ -204,10 +204,11 @@ class Player(People, pygame.sprite.Sprite):
         pygame.sprite.Sprite.__init__(self)
         self.weight_capacity = inventory_capacity
         self.inventory = []
+        self.selectedWeapon = -1
         #declare the list of the number of bullets, where 0 - pistols bullets, 1 - rifles bullet, 2 - gunshot bullets
         self.bullets = [0, 0, 0]
         #weapons[0] for glocks, 1 for ak47, 2 for shotguns
-        self.weapons = [0, 0, 0]
+        self.weapons = [False, False, False]
         self.max_amount_weapons = 3
         self.loot_group = loot
 
@@ -218,7 +219,31 @@ class Player(People, pygame.sprite.Sprite):
         
         return weight
 
-    
+    def setSelectedWeapon(self, val):
+        if(val <= len(self.weapons)):
+            self.selectedWeapon = val-1
+        print(self.selectedWeapon)
+
+    #def rotatePlayer(self):
+        #rot_image = pygame.transform.rotate(self.image, 1)
+        #rot_image.get_rect(center=self.rect.center)
+        #self.image = rot_image
+        #self.rect = rot_image.get_rect()
+
+    def heal(self, indx):
+        medicine = self.getMedicineKitsAmount()
+        val = 0
+        if (len(medicine[indx-1]) > 0):
+            arr = medicine[indx-1]
+            val = arr[len(arr)-1].healing
+            print(val)
+            self.inventory.remove(arr[len(arr)-1])
+
+        if (self.health + val >= 100):
+            self.health = 100
+        else:
+            self.health += val
+
 
     def getWeaponsList(self):
         return self.weapons
@@ -231,22 +256,28 @@ class Player(People, pygame.sprite.Sprite):
         loot_hit_group = pygame.sprite.spritecollide(self, self.loot_group, False)
         for hit in loot_hit_group:
             if(hit.weight + self.getInventoryWeight() <= self.getWeightCapacity()):
-                self.inventory.append(hit)
+
+                if(hit.name == "glock" and self.weapons[0] == 1) or (hit.name == "ak47" and self.weapons[1] == 1) or (hit.name == "shotgun" and self.weapons[2] == 1):
+                    print("The weapon already exist")
+                else:
+                    self.inventory.append(hit)
+                
                 self.loot_group.remove(hit)
+
                 if(hit.name == "bullet pistols"):
                     self.bullets[0] += hit.amount
                 elif(hit.name == "bullet rifles"):
                     self.bullets[1] += hit.amount
-                elif(hit.name == "bullet gunshot"):
+                elif(hit.name == "bullet gunshots"):
                     self.bullets[2] += hit.amount
 
                 if(hit.loot_type == "weapon"):
                     if (hit.name == "glock"):
-                        self.weapons[0] += 1
+                        self.weapons[0] = True
                     elif(hit.name == "ak47"):
-                        self.weapons[1] += 1
+                        self.weapons[1] = True
                     elif(hit.name == "shotgun"):
-                        self.weapons[2] += 1
+                        self.weapons[2] = True
 
                     print(self.weapons)
             print(hit.loot_type+ " was added to inventory!")
@@ -257,20 +288,72 @@ class Player(People, pygame.sprite.Sprite):
     def getWeightCapacity(self):
         return self.weight_capacity
 
+    def getMousePosition(self):
+        return pygame.mouse.get_pos()
+    
+    def getPlayerDirection(self):
+        x, y = self.getMousePosition()
+        vector = [0, 0]
+        vector[0] = x - self.rect.x
+        vector[1] = y - self.rect.y
+        return vector
+
+    def getPlayerBearing(self):
+        vector = self.getPlayerDirection()
+        fraction = vector[1]/vector[0]
+        print("Tan: "+str(fraction))
+        angle = math.atan(fraction)*180/math.pi
+
+        if (vector[0]>0 and vector[1] < 0):
+            angle *= -1
+        elif (vector[0] > 0 and vector[1] > 0):
+            angle += 90
+        elif (vector[0] < 0 and vector[1] > 0):
+            angle += 270
+        elif (vector[0] < 0 and vector[1] < 0):
+            angle += 270
+
+        print(angle)
+        return angle
+
+    def getMedicineKitsAmount(self):
+        counter = 0
+        kits = []
+        l = []
+        m = []
+        h = []
+        for item in self.inventory:
+            if (item.loot_type == "paramedic"):
+                if(item.name == "paramedic light"):
+                    l.append(item)
+                elif(item.name == "paramedic medium"):
+                    m.append(item)
+                elif(item.name == "paramedic heavy"):
+                    h.append(item)
+            #increment the counter      
+            counter += 1
+
+        kits.append(l)
+        kits.append(m)
+        kits.append(h)
+
+        return kits
+
     def shoot(self):
+        self.getPlayerBearing()
        
         #check if there are any bullets for pistols
-        if (self.bullets[0] > 0 and self.weapons[0]>0): 
+        if (self.bullets[0] > 0 and self.selectedWeapon == 0 and self.weapons[0]==True): 
             #create a bullet object of type "pistol"
             bullet = Bullet(self.rect.x, self.rect.y, 10, 20, WHITE, "pistols")
             self.bullets_list.add(bullet)
             self.bullets[0] -= 1
-        elif(self.bullets[1] > 0 and self.weapons[1]>0):
-            bullet = Bullet(self.rect.x, self.rect.y, 10, 20, WHITE, "rifles")
+        elif(self.bullets[1] > 0 and self.selectedWeapon == 1 and self.weapons[1]==True):
+            bullet = Bullet(self.rect.x, self.rect.y, 10, 20, GREEN, "rifles")
             self.bullets_list.add(bullet)
             self.bullets[1] -= 1
-        elif(self.bullets[2] > 0 and self.weapons[2]>0):
-            bullet = Bullet(self.rect.x, self.rect.y, 10, 20, WHITE, "gunshots")
+        elif(self.bullets[2] > 0 and self.selectedWeapon == 2 and self.weapons[2]==True):
+            bullet = Bullet(self.rect.x, self.rect.y, 10, 20, BLUE, "gunshots")
             self.bullets_list.add(bullet)
             self.bullets[2] -= 1
 
@@ -526,6 +609,7 @@ class Bullet(pygame.sprite.Sprite):
 #Game class
 class Game():
     def __init__(self, brickSide):
+        #pygame.mouse.set_visible(False)
         self.numBricks = 0
         self.brickSide = brickSide
 
@@ -660,6 +744,22 @@ class Game():
             if keys[pygame.K_s]:
                 #move the player down
                 self.player.move("down")
+
+            #selecting the weapon
+            if keys[pygame.K_1]:
+                self.player.setSelectedWeapon(1)
+            if keys[pygame.K_2]:
+                self.player.setSelectedWeapon(2)
+            if keys[pygame.K_3]:
+                self.player.setSelectedWeapon(3)
+
+            if keys[pygame.K_t]:
+                self.player.heal(1)
+            if keys[pygame.K_y]:
+                self.player.heal(2)
+            if keys[pygame.K_u]:
+                self.player.heal(3)
+
             if keys[pygame.K_LSHIFT]:
                 #move the player down
                 self.player.setSpeed(10)
