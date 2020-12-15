@@ -339,6 +339,22 @@ class Player(People, pygame.sprite.Sprite):
 
         return kits
 
+    def isHitByEnemy(self, enemies):
+        player_hit_group = pygame.sprite.spritecollide(self, enemies, False)
+
+        for hit in player_hit_group:
+           incrementKills()
+           incrementScore(10)
+
+    def isBulletCollisionWithEnemy(self, enemies, incrementKills, incrementScore):
+        player_hit_group = pygame.sprite.groupcollide(self.bullets_list, enemies, True, True)
+
+        for hit in player_hit_group:
+           incrementKills()
+           incrementScore(10)
+
+
+
     def shoot(self):
         self.getPlayerBearing()
        
@@ -612,7 +628,9 @@ class Game():
         #pygame.mouse.set_visible(False)
         self.numBricks = 0
         self.brickSide = brickSide
-
+        self.kills = 0
+        self.score = 0
+        self.wave = 1
         # declaration of sprite groups
         self.enemy_sprites_group = pygame.sprite.Group()
         self.all_sprites_group = pygame.sprite.Group()
@@ -650,6 +668,12 @@ class Game():
         
 
         #print(self.player)
+
+    def incrementKills(self):
+        self.kills += 1
+
+    def incrementScore(self, val):
+        self.score += val
 
     #randomly chosing the loot type and placing it on the map
     def createLoot(self):
@@ -700,7 +724,17 @@ class Game():
     def end(self):
         self.done = True
 
+    def createEnemies(self, quantity):
+        for i in range(quantity):
+            x = random.randint(40, 940)
+            y = random.randint(40, 940)
+
+            enemy = Enemy(x, y, 20, 20, RED, 1, 100, self.bricks_sprites_group, self.player)
+            self.enemy_sprites_group.add(enemy)
+            self.all_sprites_group.add(enemy)
+
     def reRender(self):
+        self.player.isBulletCollisionWithEnemy(self.enemy_sprites_group, self.incrementKills, self.incrementScore)
         self.enemy_sprites_group.update()
         self.player.bullets_list.update(self.player.bullets_list)
         #render the player
@@ -709,11 +743,16 @@ class Game():
         self.player.drawHealthBar()
         self.bricks_sprites_group.draw(screen)
         self.loot_sprites_group.draw(screen)
-        self.scoreBoard.draw(12, 10)
+        self.scoreBoard.draw(self.kills, self.score)
         self.inventoryList.draw(self.player.getInventory(), self.player.getInventoryWeight(), self.player.getWeightCapacity(), self.player.getBulletsList(), self.player.getWeaponsList())
         #self.loot_sprites_group.draw(screen)
         if (len(self.loot_sprites_group)==0):
             self.createLoot()
+        
+        if(len(self.enemy_sprites_group) == 0):
+            self.wave += 1
+            self.createEnemies(self.wave)
+
         pygame.display.update()
 
     def mainLoop(self):
