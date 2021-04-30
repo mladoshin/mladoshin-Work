@@ -15,6 +15,10 @@ BULLET_TYPES = ["pistols", "rifles", "shotguns"]
 ARMOUR_TYPES = ["heavy", "medium", "light"]
 PARAMEDIC_TYPES = ["heavy", "medium", "light"]
 
+
+deltaX = 0
+deltaY = 0
+
 pygame.init()
 
 size = (1000, 1000)
@@ -136,6 +140,7 @@ class Brick(pygame.sprite.Sprite):
         self.rect.x = x
         self.rect.y = y
 
+#class for a score board
 class ScoreBoard():
     def __init__(self, x, y, width, height):
         self.width = width
@@ -151,6 +156,7 @@ class ScoreBoard():
         screen.blit(score_label, (self.x, self.y+40))
         
 
+#class for healthbar
 class HealthBar():
     def __init__(self, objX, objY, width, height, initHealth):
         self.maxHealth = initHealth
@@ -197,7 +203,7 @@ class HealthBar():
         screen.blit(self.outterContainer, (self.rectOutter.x, self.rectOutter.y))
         screen.blit(self.innerContainer, (self.rectInner.x, self.rectInner.y))
 
-#Player class
+#Player base class
 class Player(People, pygame.sprite.Sprite):
     def __init__(self, x, y, width, height, color, speed, health, bricks, loot, inventory_capacity):
         super().__init__(x, y, width, height, color, speed, health, bricks)
@@ -404,6 +410,7 @@ class Loot(pygame.sprite.Sprite):
         self.rect.x = x
         self.rect.y = y
 
+#paramedic list loot
 class Paramedic(Loot):
     def __init__(self, x, y, width, height, color, paramedicType):
         super().__init__(x, y, width, height, color, "paramedic", paramedicType)
@@ -417,6 +424,7 @@ class Paramedic(Loot):
             self.healing = 75
             self.weight = 10
 
+#inventory list class
 class InventoryList():
     def __init__(self, x, y, width, height):
         self.x = x
@@ -477,7 +485,7 @@ class InventoryList():
         screen.blit(header, (self.x, self.y))
         
 
-
+#weapons Loot class
 class Weapon(Loot):
     def __init__(self, x, y, width, height, color, name):
         super().__init__(x, y, width, height, color, "weapon", name)
@@ -505,6 +513,7 @@ class Weapon(Loot):
 #    def __init__(self, )
 #        super().__init__()
 
+#Enemy class
 class Enemy(People):
     def __init__(self, x, y, width, height, color, speed, health, bricks, player):
         super().__init__(x, y, width, height, color, speed, health, bricks)
@@ -556,7 +565,9 @@ class Enemy(People):
         return self.attackVector
 
     def update(self):
-        
+        global deltaX
+        global deltaY
+        bearing = 0
         self.attackVector[0] = self.player.rect.x-self.rect.x
         self.attackVector[1] = self.rect.y-self.player.rect.y
         self.attackVector[2] = math.sqrt(pow(self.attackVector[0], 2)+pow(self.attackVector[1], 2))
@@ -565,9 +576,44 @@ class Enemy(People):
         if (self.attackVector[2] <= self.fieldView):
             self.attack()
 
-        #print(self.attackVector[2])
+        if(self.attackVector[0] != deltaX):
+            deltaX = self.attackVector[0]
+            print("delta X:"+str(self.attackVector[0]))
 
+        if(self.attackVector[1] != deltaY):
+            deltaY = self.attackVector[1]
+            print("delta Y:"+str(self.attackVector[1]))
+            
+            try:
+                angle = abs(math.atan(deltaX/deltaY))
+                if (deltaX > 0 and deltaY > 0):
+                    #1st quarter
+                    bearing = math.pi/2 - angle
+                elif(deltaX <  0 and deltaY > 0):
+                    bearing = angle + math.pi/2
+                elif(deltaX < 0 and deltaY < 0):
+                    # 3rd quarter
+                    bearing = math.pi/2 - angle + math.pi
+                elif(deltaX > 0 and deltaY < 0):
+                    #4th quarter
+                    bearing = angle + 3*math.pi/2
+                elif(deltaX == 0 and deltaY >= 0):
+                    bearing = math.pi/2
+                elif(deltaX == 0 and deltaY <= 0):
+                    bearing = 3*math.pi/2
+            except:
+                if (deltaY == 0 and deltaX >= 0):
+                    bearing = 0
+                elif (deltaY == 0 and deltaX <= 0):
+                    bearing = math.pi
 
+                angle = 0
+                bearing = 0
+
+            print("Angle:"+str(bearing*180/math.pi))
+        
+
+#armor class
 class Armour(Loot):
     def __init__(self, x, y, width, height, color, Atype):
         super().__init__(x, y, width, height, color, "armour", Atype)
@@ -578,13 +624,14 @@ class Armour(Loot):
         elif(Atype == "heavy"):
             self.armourHealth = 100
 
+#bullet loot class
 class BulletsLoot(Loot):
     def __init__(self, x, y, width, height, color, bullet_type):
         super().__init__(x, y, width, height, color, "bullet", bullet_type)
         self.amount = random.randint(5, 50)
 #Bullet class
 
-
+#bullet class
 class Bullet(pygame.sprite.Sprite):
     isVisible = False
 
@@ -615,11 +662,13 @@ class Bullet(pygame.sprite.Sprite):
     def draw(self):
         screen.blit(self.image, (self.rect.x, self.rect.y))
 
+
     def update(self, group):
         self.move()
         if (self.rect.y < -20):
             group.remove(self)
             print("Remove the bullet")
+
 
 
 #Game class
@@ -700,7 +749,8 @@ class Game():
 
         #self.all_sprites_group.add(loot)
         self.loot_sprites_group.add(loot)
-        
+
+    #function for rendering outer walls on the window 
     def createOutterWalls(self):
         for row in range(0, int(1000/self.brickSide)) :
             for col in range(0, int(1000/self.brickSide)):
